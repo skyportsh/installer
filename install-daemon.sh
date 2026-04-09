@@ -130,6 +130,9 @@ install_daemon_stable() {
 }
 
 install_daemon_edge() {
+    # Ensure build tools are available
+    DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config >> "$LOG_FILE" 2>&1
+
     if ! check_command cargo; then
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         # shellcheck source=/dev/null
