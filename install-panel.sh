@@ -10,7 +10,6 @@ INSTALLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Allow running via curl pipe by downloading lib first
 if [[ ! -f "$INSTALLER_DIR/lib/ui.sh" ]]; then
     INSTALLER_DIR=$(mktemp -d)
-    curl -fsSL "https://raw.githubusercontent.com/skyportsh/installer/main/lib/ui.sh" -o "$INSTALLER_DIR/lib/ui.sh"
     mkdir -p "$INSTALLER_DIR/lib"
     curl -fsSL "https://raw.githubusercontent.com/skyportsh/installer/main/lib/ui.sh" -o "$INSTALLER_DIR/lib/ui.sh"
 fi
@@ -56,9 +55,7 @@ success "Channel: $CHANNEL"
 
 step "Web server configuration"
 
-USE_DOMAIN=$(ask_yes_no "Set up with a domain name (with SSL)?" "y")
-
-if $USE_DOMAIN; then
+if ask_yes_no "Set up with a domain name (with SSL)?" "y"; then
     FQDN=$(ask "Domain name" "panel.example.com")
     APP_URL="https://${FQDN}"
     USE_SSL=true
@@ -132,16 +129,29 @@ step "Installing system dependencies"
 
 run_step "Updating package lists" apt-get update -y
 
+install_base_packages() {
+    apt-get install -y curl gnupg2 ca-certificates lsb-release unzip git nginx
+}
+
+run_step "Installing base packages" install_base_packages
+
 install_php_packages() {
     source /etc/os-release
-    apt-get install -y software-properties-common curl gnupg2 ca-certificates lsb-release unzip git nginx
 
-    # Add PHP 8.4 repository
     if [[ "$ID" == "ubuntu" ]]; then
+        apt-get install -y software-properties-common
         add-apt-repository -y ppa:ondrej/php
     else
-        curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /usr/share/keyrings/sury-php.gpg
-        echo "deb [signed-by=/usr/share/keyrings/sury-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/sury-php.list
+        # Debian — use sury.org
+        apt-get install -y apt-transport-https
+        curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /usr/share/keyrings/sury-php.gpg 2>/dev/null || true
+        local codename
+        codename=$(lsb_release -sc)
+        # Debian 13 (trixie) may not have a sury release yet — fall back to bookworm
+        if ! curl -fsSL "https://packages.sury.org/php/dists/${codename}/Release" >/dev/null 2>&1; then
+            codename="bookworm"
+        fi
+        echo "deb [signed-by=/usr/share/keyrings/sury-php.gpg] https://packages.sury.org/php/ ${codename} main" > /etc/apt/sources.list.d/sury-php.list
     fi
 
     apt-get update -y
@@ -156,10 +166,12 @@ install_php_packages() {
         php8.4-sqlite3 \
         php8.4-mysql \
         php8.4-swoole \
-        php8.4-readline
+        php8.4-readline \
+        php8.4-gd \
+        php8.4-intl
 }
 
-run_step "Installing PHP 8.4, Swoole, Nginx" install_php_packages
+run_step "Installing PHP 8.4 + Swoole" install_php_packages
 
 # ── Composer ─────────────────────────────────────────────────
 
@@ -176,19 +188,15 @@ run_step "Installing Composer" install_composer
 install_bun() {
     if ! command -v bun &>/dev/null; then
         curl -fsSL https://bun.sh/install | bash
-        export BUN_INSTALL="$HOME/.bun"
-        export PATH="$BUN_INSTALL/bin:$PATH"
-
-        # Make bun available system-wide
-        ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun
+    fi
+    # Symlink to system path
+    if [[ -f "$HOME/.bun/bin/bun" ]]; then
+        ln -sf "$HOME/.bun/bin/bun" /usr/local/bin/bun
     fi
 }
 
 run_step "Installing Bun" install_bun
-
-# Ensure bun is in PATH for the rest of the script
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:/usr/local/bin:$PATH"
+export PATH="/usr/local/bin:$HOME/.bun/bin:$PATH"
 
 # ── Node.js (for SSR) ───────────────────────────────────────
 
@@ -206,13 +214,15 @@ run_step "Installing Node.js (SSR runtime)" install_node
 step "Downloading Skyport Panel"
 
 download_panel() {
+    if [[ -d "$INSTALL_DIR/.git" ]] || [[ -f "$INSTALL_DIR/artisan" ]]; then
+        rm -rf "$INSTALL_DIR"
+    fi
     mkdir -p "$INSTALL_DIR"
 
     if [[ "$CHANNEL" == "stable" ]]; then
         local tag
         tag=$(latest_github_release "skyportsh/panel")
         if [[ -z "$tag" ]]; then
-            # Fallback to main if no release exists yet
             git clone --depth 1 https://github.com/skyportsh/panel.git "$INSTALL_DIR"
         else
             curl -fsSL "https://github.com/skyportsh/panel/archive/refs/tags/${tag}.tar.gz" | tar -xz --strip-components=1 -C "$INSTALL_DIR"
@@ -228,13 +238,18 @@ run_step "Downloading panel ($CHANNEL)" download_panel
 
 step "Installing application dependencies"
 
-install_panel_deps() {
+install_php_deps() {
     cd "$INSTALL_DIR"
     COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --no-interaction --optimize-autoloader
+}
+
+install_js_deps() {
+    cd "$INSTALL_DIR"
     bun install
 }
 
-run_step "Installing PHP and JS dependencies" install_panel_deps
+run_step "Installing PHP dependencies" install_php_deps
+run_step "Installing JS dependencies" install_js_deps
 
 # ── Configure environment ────────────────────────────────────
 
@@ -268,7 +283,11 @@ configure_env() {
     fi
 
     # Set Octane server
-    sed -i "s/^OCTANE_SERVER=.*/OCTANE_SERVER=swoole/" .env || echo "OCTANE_SERVER=swoole" >> .env
+    if grep -q "^OCTANE_SERVER=" .env; then
+        sed -i "s/^OCTANE_SERVER=.*/OCTANE_SERVER=swoole/" .env
+    else
+        echo "OCTANE_SERVER=swoole" >> .env
+    fi
 }
 
 run_step "Configuring environment" configure_env
@@ -278,6 +297,11 @@ run_step "Configuring environment" configure_env
 run_migrations() {
     cd "$INSTALL_DIR"
     php artisan migrate --force --no-interaction
+}
+
+generate_wayfinder() {
+    cd "$INSTALL_DIR"
+    php artisan wayfinder:generate --with-form --no-interaction
 }
 
 build_assets() {
@@ -296,6 +320,7 @@ create_admin_user() {
 }
 
 run_step "Running database migrations" run_migrations
+run_step "Generating route bindings" generate_wayfinder
 run_step "Building frontend assets" build_assets
 run_step "Creating admin user" create_admin_user
 
@@ -305,6 +330,10 @@ set_permissions() {
     cd "$INSTALL_DIR"
     chown -R "$PANEL_USER:$PANEL_GROUP" .
     chmod -R 755 storage bootstrap/cache
+    if [[ "$DB_CONNECTION" == "sqlite" ]]; then
+        chown "$PANEL_USER:$PANEL_GROUP" database/database.sqlite
+        chmod 664 database/database.sqlite
+    fi
 }
 
 run_step "Setting file permissions" set_permissions
@@ -407,7 +436,6 @@ run_step "Configuring Nginx" configure_nginx
 step "Creating systemd services"
 
 create_services() {
-    # Octane service
     cat > /etc/systemd/system/skyport-panel.service <<SERVICE
 [Unit]
 Description=Skyport Panel (Octane)
@@ -426,7 +454,6 @@ RestartSec=5
 WantedBy=multi-user.target
 SERVICE
 
-    # Queue worker
     cat > /etc/systemd/system/skyport-queue.service <<SERVICE
 [Unit]
 Description=Skyport Queue Worker
@@ -444,7 +471,6 @@ RestartSec=5
 WantedBy=multi-user.target
 SERVICE
 
-    # SSR service
     cat > /etc/systemd/system/skyport-ssr.service <<SERVICE
 [Unit]
 Description=Skyport Inertia SSR

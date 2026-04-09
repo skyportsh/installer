@@ -15,7 +15,7 @@ RED='\033[38;2;220;50;50m'
 GREEN='\033[38;2;80;200;120m'
 
 banner() {
-    clear
+    clear 2>/dev/null || true
     echo ""
     echo -e "${GRAY_DARK}╭──────────────────────────────────────────────────────────────╮${RESET}"
     echo -e "${GRAY_DARK}│${RESET}                                                              ${GRAY_DARK}│${RESET}"
@@ -57,46 +57,46 @@ step() {
 ask() {
     local prompt="$1"
     local default="$2"
-    local result
+    local __result
 
     if [[ -n "$default" ]]; then
-        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET} ${GRAY_DARK}[${ORANGE_DARK}${default}${GRAY_DARK}]${RESET}: "
+        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET} ${GRAY_DARK}[${ORANGE_DARK}${default}${GRAY_DARK}]${RESET}: " >&2
     else
-        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET}: "
+        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET}: " >&2
     fi
 
-    read -r result
-    if [[ -z "$result" ]]; then
-        result="$default"
+    read -r __result
+    if [[ -z "$__result" ]]; then
+        __result="$default"
     fi
-    echo "$result"
+    echo "$__result"
 }
 
 ask_password() {
     local prompt="$1"
-    local result
+    local __result
 
-    echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET}: "
-    read -rs result
-    echo ""
-    echo "$result"
+    echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET}: " >&2
+    read -rs __result
+    echo "" >&2
+    echo "$__result"
 }
 
 ask_yes_no() {
     local prompt="$1"
     local default="${2:-y}"
-    local result
+    local __result
 
     if [[ "$default" == "y" ]]; then
-        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET} ${GRAY_DARK}[${ORANGE_DARK}Y/n${GRAY_DARK}]${RESET}: "
+        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET} ${GRAY_DARK}[${ORANGE_DARK}Y/n${GRAY_DARK}]${RESET}: " >&2
     else
-        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET} ${GRAY_DARK}[${ORANGE_DARK}y/N${GRAY_DARK}]${RESET}: "
+        echo -ne "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET} ${GRAY_DARK}[${ORANGE_DARK}y/N${GRAY_DARK}]${RESET}: " >&2
     fi
 
-    read -r result
-    result="${result:-$default}"
+    read -r __result
+    __result="${__result:-$default}"
 
-    [[ "$result" =~ ^[Yy] ]]
+    [[ "$__result" =~ ^[Yy] ]]
 }
 
 ask_choice() {
@@ -105,18 +105,18 @@ ask_choice() {
     local options=("$@")
     local i=1
 
-    echo -e "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET}"
+    echo -e "  ${ORANGE}›${RESET} ${GRAY}${prompt}${RESET}" >&2
     for opt in "${options[@]}"; do
-        echo -e "    ${ORANGE_DARK}${i})${RESET} ${GRAY}${opt}${RESET}"
+        echo -e "    ${ORANGE_DARK}${i})${RESET} ${GRAY}${opt}${RESET}" >&2
         ((i++))
     done
 
-    local choice
-    echo -ne "  ${ORANGE}›${RESET} ${GRAY}Choice${RESET}: "
-    read -r choice
+    local __choice
+    echo -ne "  ${ORANGE}›${RESET} ${GRAY}Choice${RESET}: " >&2
+    read -r __choice
 
-    if [[ "$choice" -ge 1 && "$choice" -le "${#options[@]}" ]] 2>/dev/null; then
-        echo "$choice"
+    if [[ "$__choice" -ge 1 && "$__choice" -le "${#options[@]}" ]] 2>/dev/null; then
+        echo "$__choice"
     else
         echo "1"
     fi
@@ -129,19 +129,19 @@ spinner() {
     local i=0
 
     while kill -0 "$pid" 2>/dev/null; do
-        echo -ne "\r  ${ORANGE}${frames[$i]}${RESET} ${GRAY}${label}${RESET}  "
+        printf "\r  ${ORANGE}%s${RESET} ${GRAY}%s${RESET}  " "${frames[$i]}" "$label" >&2
         i=$(( (i + 1) % ${#frames[@]} ))
         sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
-    echo -ne "\r"
+    printf "\r" >&2
 
     if [[ $exit_code -eq 0 ]]; then
         success "$label"
     else
-        error "$label"
+        error "$label (exit code $exit_code — see /tmp/skyport-install.log)"
     fi
 
     return $exit_code
@@ -193,5 +193,5 @@ check_root() {
 
 latest_github_release() {
     local repo="$1"
-    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" | grep -oP '"tag_name":\s*"\K[^"]+'
+    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null | grep -oP '"tag_name":\s*"\K[^"]+' || echo ""
 }
