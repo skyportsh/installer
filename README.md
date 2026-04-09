@@ -35,6 +35,16 @@ bash <(curl -fsSL https://raw.githubusercontent.com/skyportsh/installer/main/ins
 
 The daemon installer downloads a pre-built binary (stable) or compiles from source (bleeding edge) and configures a systemd service.
 
+## Migrating from Pterodactyl
+
+If you have an existing Pterodactyl panel, install Skyport first, then run the migration script on the same machine:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/skyportsh/installer/main/migrate-panel.sh)
+```
+
+This migrates users, locations, nodes, eggs (→ cargo), allocations, and servers. User passwords are preserved so existing users can log in immediately.
+
 ## License
 
 MIT
