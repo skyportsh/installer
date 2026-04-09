@@ -288,6 +288,12 @@ configure_env() {
     else
         echo "OCTANE_SERVER=swoole" >> .env
     fi
+
+    # Trust the local Nginx reverse proxy and set asset URL
+    echo "TRUSTED_PROXIES=*" >> .env
+    if $USE_SSL; then
+        echo "ASSET_URL=${APP_URL}" >> .env
+    fi
 }
 
 run_step "Configuring environment" configure_env
