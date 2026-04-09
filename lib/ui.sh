@@ -178,10 +178,18 @@ check_root() {
 }
 
 check_disk_space() {
-    local required_mb="$1" install_dir="$2"
+    local required_mb="$1" check_path="$2"
+    # Walk up to find an existing directory
+    while [[ ! -d "$check_path" && "$check_path" != "/" ]]; do
+        check_path="$(dirname "$check_path")"
+    done
     local available_mb
-    available_mb=$(df -m "${install_dir%/*}" 2>/dev/null | awk 'NR==2{print $4}')
-    if [[ -n "$available_mb" ]] && [[ "$available_mb" -lt "$required_mb" ]]; then
+    available_mb=$(df -m "$check_path" 2>/dev/null | awk 'NR==2{print $4}')
+    if [[ -z "$available_mb" ]]; then
+        warn "Could not check disk space."
+        return 0
+    fi
+    if [[ "$available_mb" -lt "$required_mb" ]]; then
         error "Not enough disk space. Need ${required_mb}MB, have ${available_mb}MB."
         exit 1
     fi
@@ -190,7 +198,7 @@ check_disk_space() {
 
 check_memory() {
     local available_mb
-    available_mb=$(free -m | awk '/Mem:/{print $7}')
+    available_mb=$(free -m 2>/dev/null | awk '/Mem:/{print $7}') || true
     if [[ -n "$available_mb" ]] && [[ "$available_mb" -lt 256 ]]; then
         warn "Low memory: ${available_mb}MB available. Installation may be slow."
     fi
@@ -198,8 +206,14 @@ check_memory() {
 
 check_port_available() {
     local port="$1"
-    if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
-        return 1
+    if check_command ss; then
+        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+            return 1
+        fi
+    elif check_command netstat; then
+        if netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
+            return 1
+        fi
     fi
     return 0
 }

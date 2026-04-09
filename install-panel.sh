@@ -110,15 +110,17 @@ if [[ "$DB_CHOICE" == "2" ]]; then
     DB_USERNAME=$(ask "Database username" "skyport")
     DB_PASSWORD=$(ask_password "Database password")
 
-    # Test connection
-    info "Testing database connection..."
-    if php -r "try { new PDO('mysql:host=${DB_HOST};port=${DB_PORT};dbname=${DB_DATABASE}', '${DB_USERNAME}', '${DB_PASSWORD}'); echo 'ok'; } catch(Exception \$e) { echo 'fail: ' . \$e->getMessage(); exit(1); }" 2>/dev/null; then
-        success "Database connection successful"
-    else
-        warn "Could not connect to the database."
-        warn "The installer will continue, but migrations may fail."
-        if ! ask_yes_no "Continue anyway?" "y"; then
-            exit 1
+    # Test connection if PHP is available
+    if check_command php; then
+        info "Testing database connection..."
+        if php -r "try { new PDO('mysql:host=${DB_HOST};port=${DB_PORT};dbname=${DB_DATABASE}', '${DB_USERNAME}', '${DB_PASSWORD}'); echo 'ok'; } catch(Exception \$e) { echo 'fail: ' . \$e->getMessage(); exit(1); }" 2>/dev/null; then
+            success "Database connection successful"
+        else
+            warn "Could not connect to the database."
+            warn "The installer will continue, but migrations may fail."
+            if ! ask_yes_no "Continue anyway?" "y"; then
+                exit 1
+            fi
         fi
     fi
 else
@@ -249,9 +251,20 @@ fi
 # ── Node.js (for SSR) ───────────────────────────────────────
 
 install_node() {
-    if check_command node; then return 0; fi
-    curl -fsSL --retry 3 https://deb.nodesource.com/setup_22.x | bash -
-    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+    local need_install=true
+    if check_command node; then
+        local current_major
+        current_major=$(node -v 2>/dev/null | grep -oP '^v\K\d+' || echo "0")
+        if [[ "$current_major" -ge 22 ]]; then
+            need_install=false
+        else
+            echo "Node.js v${current_major} is too old, upgrading to v22..." >> "$LOG_FILE"
+        fi
+    fi
+    if $need_install; then
+        curl -fsSL --retry 3 https://deb.nodesource.com/setup_22.x | bash -
+        DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+    fi
 }
 
 run_step "Installing Node.js (SSR runtime)" install_node
