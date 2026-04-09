@@ -19,18 +19,7 @@ LOG_FILE="/tmp/skyport-install.log"
 banner() {
     clear 2>/dev/null || true
     echo ""
-    echo -e "${GRAY_DARK}╭──────────────────────────────────────────────────────────────╮${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}                                                              ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}   ${ORANGE}███████╗${GRAY} ██╗  ██╗ ${ORANGE}██╗   ██╗${GRAY} ██████╗  ${ORANGE}██████╗ ${GRAY} ██████╗${RESET}   ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}   ${ORANGE}██╔════╝${GRAY} ██║ ██╔╝ ${ORANGE}╚██╗ ██╔╝${GRAY} ██╔══██╗ ${ORANGE}██╔═══██╗${GRAY} ██╔══██╗${RESET}  ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}   ${ORANGE}███████╗${GRAY} █████╔╝  ${ORANGE} ╚████╔╝ ${GRAY} ██████╔╝ ${ORANGE}██║   ██║${GRAY} ██████╔╝${RESET}  ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}   ${ORANGE}╚════██║${GRAY} ██╔═██╗  ${ORANGE}  ╚██╔╝  ${GRAY} ██╔═══╝  ${ORANGE}██║   ██║${GRAY} ██╔══██╗${RESET}  ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}   ${ORANGE}███████║${GRAY} ██║  ██╗ ${ORANGE}   ██║   ${GRAY} ██║      ${ORANGE}╚██████╔╝${GRAY} ██║  ██║${RESET}  ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}   ${ORANGE}╚══════╝${GRAY} ╚═╝  ╚═╝ ${ORANGE}   ╚═╝   ${GRAY} ╚═╝       ${ORANGE}╚═════╝ ${GRAY} ╚═╝  ╚═╝${RESET}  ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}                                                              ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}   ${DIM}${GRAY}$1${RESET}"
-    echo -e "${GRAY_DARK}│${RESET}                                                              ${GRAY_DARK}│${RESET}"
-    echo -e "${GRAY_DARK}╰──────────────────────────────────────────────────────────────╯${RESET}"
+    echo -e "  ${ORANGE}Skyport${RESET} ${GRAY}— ${DIM}$1${RESET}"
     echo ""
 }
 
