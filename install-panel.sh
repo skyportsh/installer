@@ -306,7 +306,7 @@ generate_wayfinder() {
 
 build_assets() {
     cd "$INSTALL_DIR"
-    bun run build
+    bun run build:ssr
 }
 
 create_admin_user() {
