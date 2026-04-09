@@ -282,6 +282,9 @@ configure_env() {
         touch database/database.sqlite
     fi
 
+    # Ensure trailing newline before appending
+    sed -i -e '$a\' .env
+
     # Set Octane server
     if grep -q "^OCTANE_SERVER=" .env; then
         sed -i "s/^OCTANE_SERVER=.*/OCTANE_SERVER=swoole/" .env
@@ -377,7 +380,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
     server_name ${FQDN};
 
     ssl_certificate /etc/letsencrypt/live/${FQDN}/fullchain.pem;
@@ -432,7 +435,7 @@ NGINX_CONF
     rm -f /etc/nginx/sites-enabled/default
     ln -sf /etc/nginx/sites-available/skyport.conf /etc/nginx/sites-enabled/skyport.conf
     nginx -t
-    systemctl reload nginx
+    systemctl restart nginx
 }
 
 run_step "Configuring Nginx" configure_nginx
