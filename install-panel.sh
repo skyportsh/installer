@@ -351,10 +351,8 @@ configure_env() {
     # Reverse proxy trust
     echo "TRUSTED_PROXIES=*" >> .env
 
-    # ASSET_URL for SSL (prevents mixed content)
-    if $USE_SSL; then
-        echo "ASSET_URL=${APP_URL}" >> .env
-    fi
+    # ASSET_URL ensures assets use the correct public URL
+    echo "ASSET_URL=${APP_URL}" >> .env
 }
 
 run_step "Configuring environment" configure_env
