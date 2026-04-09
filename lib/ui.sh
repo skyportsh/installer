@@ -146,15 +146,15 @@ check_os() {
     case "$ID" in
         ubuntu)
             case "$VERSION_ID" in
-                22.04|24.04) ;;
-                *) error "Ubuntu $VERSION_ID is not supported. Use 22.04 or 24.04."; exit 1 ;;
+                24.04) ;;
+                *) error "Ubuntu $VERSION_ID is not supported. Use Ubuntu 24.04."; exit 1 ;;
             esac ;;
         debian)
             case "$VERSION_ID" in
-                11|12|13) ;;
-                *) error "Debian $VERSION_ID is not supported. Use 11, 12, or 13."; exit 1 ;;
+                13) ;;
+                *) error "Debian $VERSION_ID is not supported. Use Debian 13."; exit 1 ;;
             esac ;;
-        *) error "$PRETTY_NAME is not supported. Use Ubuntu 22/24 or Debian 11/12/13."; exit 1 ;;
+        *) error "$PRETTY_NAME is not supported. Use Ubuntu 24.04 or Debian 13."; exit 1 ;;
     esac
     success "Detected $PRETTY_NAME"
 }

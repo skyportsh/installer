@@ -18,8 +18,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/skyportsh/installer/main/ins
 
 | OS | Versions |
 |---|---|
-| Ubuntu | 22.04, 24.04 |
-| Debian | 11, 12, 13 |
+| Ubuntu | 24.04 |
+| Debian | 13 |
 
 ## Panel Stack
 
