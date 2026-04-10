@@ -146,6 +146,24 @@ while [[ ${#ADMIN_PASSWORD} -lt 8 ]]; do
 done
 success "Admin: $ADMIN_EMAIL"
 
+# ── Telemetry ─────────────────────────────────────────────
+
+step "Telemetry"
+
+info "Skyport can send anonymous telemetry to help improve the project."
+info "This includes:"
+info "  • A download/install count (counted once)"
+info "  • Anonymised error types if the panel encounters issues"
+info "No personal data, server details, or IP addresses are ever sent."
+echo ""
+
+if ask_yes_no "Enable anonymous telemetry?" "y"; then
+    TELEMETRY_ENABLED=true
+else
+    TELEMETRY_ENABLED=false
+fi
+success "Telemetry: $(if $TELEMETRY_ENABLED; then echo 'enabled'; else echo 'disabled'; fi)"
+
 # ── Confirm ──────────────────────────────────────────────────
 
 step "Installation summary"
@@ -158,6 +176,7 @@ else
 fi
 info "Database:   ${DB_CONNECTION}"
 info "Admin:      ${ADMIN_EMAIL}"
+info "Telemetry:  $(if $TELEMETRY_ENABLED; then echo 'enabled'; else echo 'disabled'; fi)"
 info "Install to: ${INSTALL_DIR}"
 echo ""
 
@@ -267,6 +286,7 @@ install_node() {
     fi
 }
 
+warn "Installing Node.js from source — this may take a while."
 run_step "Installing Node.js (SSR runtime)" install_node
 
 # ── Download panel ───────────────────────────────────────────
@@ -353,6 +373,13 @@ configure_env() {
 
     # ASSET_URL ensures assets use the correct public URL
     echo "ASSET_URL=${APP_URL}" >> .env
+
+    # Telemetry
+    if $TELEMETRY_ENABLED; then
+        echo "SKYPORT_TELEMETRY_ENABLED=true" >> .env
+    else
+        echo "SKYPORT_TELEMETRY_ENABLED=false" >> .env
+    fi
 }
 
 run_step "Configuring environment" configure_env
@@ -385,6 +412,40 @@ run_step "Running database migrations" run_migrations || abort_with_log "Databas
 run_step "Generating route bindings" generate_wayfinder
 run_step "Building frontend assets (this takes a minute)" build_assets || abort_with_log "Asset build failed."
 run_step "Creating admin user" create_admin_user
+
+# ── Telemetry seed ────────────────────────────────────────
+
+configure_telemetry() {
+    cd "$INSTALL_DIR"
+    if $TELEMETRY_ENABLED; then
+        php artisan tinker --no-interaction --execute "
+            \App\Models\AppSetting::updateOrCreate(
+                ['key' => 'telemetry_enabled'],
+                ['value' => '1']
+            );
+            echo 'Telemetry enabled.';
+        "
+    else
+        php artisan tinker --no-interaction --execute "
+            \App\Models\AppSetting::updateOrCreate(
+                ['key' => 'telemetry_enabled'],
+                ['value' => '0']
+            );
+            echo 'Telemetry disabled.';
+        "
+    fi
+}
+
+run_step "Configuring telemetry" configure_telemetry
+
+send_install_telemetry() {
+    cd "$INSTALL_DIR"
+    if $TELEMETRY_ENABLED; then
+        php artisan telemetry:report --event=install --no-interaction 2>/dev/null || true
+    fi
+}
+
+run_step "Reporting install" send_install_telemetry
 
 # ── Permissions ──────────────────────────────────────────────
 
